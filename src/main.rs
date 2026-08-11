@@ -4,7 +4,7 @@ use crate::commands::key_gen::key_gen;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "climenv")]
+#[command(name = "envo")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

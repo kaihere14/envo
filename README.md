@@ -1,5 +1,5 @@
 
-# climenv
+# envo
 
 Zero-trust encrypted `.env` sync over Nostr. No relay, server, or local file is ever a trusted source of truth access is enforced entirely by Nostr keypair possession.
 
@@ -14,11 +14,11 @@ Zero-trust encrypted `.env` sync over Nostr. No relay, server, or local file is 
 
 ## Commands (planned)
 
-- `climenv keygen` — generate a Nostr keypair (implemented)
-- `climenv init <tag>` — first publish for a project (stub)
-- `climenv pull <tag>` — fetch and decrypt your `.env` (stub)
-- `climenv push <tag>` — republish after edits (owner only) (stub)
-- `climenv add-user <tag> --pubkey <npub>` — grant a teammate access (owner only) (stub)
+- `envo keygen` — generate a Nostr keypair (implemented)
+- `envo init <tag>` — first publish for a project (stub)
+- `envo pull <tag>` — fetch and decrypt your `.env` (stub)
+- `envo push <tag>` — republish after edits (owner only) (stub)
+- `envo add-user <tag> --pubkey <npub>` — grant a teammate access (owner only) (stub)
 
 ## Stack
 Rust · [nostr-sdk](https://github.com/rust-nostr/nostr) · secp256k1 · NIP-44
