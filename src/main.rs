@@ -1,5 +1,6 @@
 mod commands;
 mod helper;
+mod tests;
 
 use crate::commands::key_gen::*;
 
@@ -45,8 +46,15 @@ fn main() {
 
         Commands::Init { tag } => {
             //complete work is left for now this is just a testing code for my understanding
-            let env_contents = std::fs::read_to_string(".env").expect("No file found");
-            commands::init::init(tag, &env_contents);
+            let files = match helper::env_files::load_project_files() {
+                Ok(files) => files,
+                Err(e) => {
+                    eprintln!("error: {}", e);
+                    return;
+                }
+            };
+
+            commands::init::init(tag, &files.env_contents, &files.trusted_pubkeys);
         }
 
         Commands::Pull { tag } => {

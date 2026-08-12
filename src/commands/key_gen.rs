@@ -113,18 +113,17 @@ fn create_new_keys(key_dir: &Path) -> Keys {
     keys
 }
 
-/// Loads the stored identity as a `Keys`, generating one on first run.
+/// Loads the stored identity as a `Keys`, failing when there is none.
 /// Callers get something they can sign and encrypt with directly.
-pub fn load_keys() -> Result<Keys, Box<dyn std::error::Error>> {
+///
+/// Generating a keypair here would let a command publish under a brand new
+/// identity without the user noticing, so creating keys stays the job of
+/// `key_gen` alone.
+pub fn require_keys() -> Result<Keys, Box<dyn std::error::Error>> {
     let key_dir = gen_key_dir();
 
-    // Both branches reuse the helpers above, so reading, parsing and
-    // validating the key file only ever happens in one place.
-    if let Some(keys) = read_existing_keys(&key_dir) {
-        return Ok(keys);
+    match read_existing_keys(&key_dir) {
+        Some(keys) => Ok(keys),
+        None => Err("No identity found. Run `envo keygen` first.".into()),
     }
-
-    println!("No keys found, generating new keys...");
-
-    Ok(create_new_keys(&key_dir))
 }
