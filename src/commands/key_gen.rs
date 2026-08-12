@@ -59,7 +59,7 @@ pub fn key_gen() {
         if !valid_keypair {
             println!("The keys were incorrect or corupter regenerating");
         } else {
-            println!("Your public key : {}", contents["npub"]);
+            println!("Your public key : {}", public_key);
             return;
         }
     }
