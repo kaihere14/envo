@@ -79,7 +79,7 @@ pub fn key_gen() {
         Err(_) => panic!("Failed to generate private key"),
     };
 
-    if public_key.len() != private_key.len() && public_key.len() == 0 && private_key.len() == 0 {
+    if public_key.len() != private_key.len() || public_key.is_empty() || private_key.is_empty() {
         panic!("There was no public key or private key generated");
     }
 
