@@ -1,4 +1,6 @@
 mod commands;
+mod helper;
+
 use crate::commands::key_gen::key_gen;
 
 use clap::{Parser, Subcommand};
@@ -35,6 +37,7 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
+
     match cli.command {
         Commands::Keygen => {
             key_gen();
