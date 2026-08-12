@@ -2,7 +2,6 @@ mod commands;
 mod helper;
 
 use crate::commands::key_gen::*;
-use crate::helper::key_valid::*;
 
 use clap::{Parser, Subcommand};
 
@@ -45,24 +44,9 @@ fn main() {
         }
 
         Commands::Init { tag } => {
-            let keys = load_keys();
-
-            let (public_key, private_key) = match keys {
-                Ok((public_key, private_key)) => (public_key, private_key),
-                Err(e) => {
-                    eprintln!("Error loading keys: {}", e);
-                    return;
-                }
-            };
-
-            let valid = is_valid_keypair(&public_key, &private_key);
-
-            if !valid {
-                eprintln!("Invalid keypair");
-                return;
-            }
-
-            println!("Keys loaded successfully and your tag is : {}", tag);
+            //complete work is left for now this is just a testing code for my understanding
+            let env_contents = std::fs::read_to_string(".env").expect("No file found");
+            commands::init::init(tag, &env_contents);
         }
 
         Commands::Pull { tag } => {
