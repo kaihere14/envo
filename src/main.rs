@@ -1,7 +1,8 @@
 mod commands;
 mod helper;
 
-use crate::commands::key_gen::key_gen;
+use crate::commands::key_gen::*;
+use crate::helper::key_valid::*;
 
 use clap::{Parser, Subcommand};
 
@@ -42,15 +43,36 @@ fn main() {
         Commands::Keygen => {
             key_gen();
         }
+
         Commands::Init { tag } => {
-            println!("init called with tag: {}", tag);
+            let keys = load_keys();
+
+            let (public_key, private_key) = match keys {
+                Ok((public_key, private_key)) => (public_key, private_key),
+                Err(e) => {
+                    eprintln!("Error loading keys: {}", e);
+                    return;
+                }
+            };
+
+            let valid = is_valid_keypair(&public_key, &private_key);
+
+            if !valid {
+                eprintln!("Invalid keypair");
+                return;
+            }
+
+            println!("Keys loaded successfully and your tag is : {}", tag);
         }
+
         Commands::Pull { tag } => {
             println!("Pull called with tag: {}", tag);
         }
+
         Commands::Push { tag } => {
             println!("Push called with tag: {}", tag);
         }
+
         Commands::AddUser { tag, pubkey } => {
             println!("AddUser called with tag: {}, pubkey: {}", tag, pubkey);
         }

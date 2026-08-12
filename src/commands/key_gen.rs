@@ -1,27 +1,8 @@
-use crate::helper::key_valid::is_valid_keypair;
+use crate::helper::key_valid::*;
 use nostr_sdk::prelude::*;
-use std::path::PathBuf;
 
 pub fn key_gen() {
-    let home: PathBuf;
-
-    match dirs::home_dir() {
-        Some(home_dir) => home = home_dir,
-        None => panic!("Failed to get home directory"),
-    };
-
-    let envo_dir = home.join(".envo");
-
-    if !envo_dir.exists() {
-        match std::fs::create_dir(&envo_dir) {
-            Ok(_) => {
-                println!("File didnt exist, created .envo directory")
-            }
-            Err(e) => panic!("Failed to create .envo directory: {}", e),
-        }
-    }
-
-    let key_dir = envo_dir.join("keys.json");
+    let key_dir = gen_key_dir();
 
     if !key_dir.exists() {
         match std::fs::File::create(&key_dir) {
@@ -33,6 +14,7 @@ pub fn key_gen() {
     }
 
     let has_contents;
+
     match std::fs::read_to_string(&key_dir) {
         Ok(contents) => has_contents = contents,
         Err(_) => has_contents = String::new(),
@@ -40,6 +22,7 @@ pub fn key_gen() {
 
     if !has_contents.is_empty() {
         println!("keys.json already exists at {}", key_dir.display());
+
         let contents: serde_json::Value = serde_json::from_str(&has_contents).unwrap();
 
         let public_key;
@@ -93,4 +76,26 @@ pub fn key_gen() {
         }
         Err(e) => panic!("Failed to write keys to file: {}", e),
     }
+}
+
+pub fn load_keys() -> Result<(String, String), Box<dyn std::error::Error>> {
+    let key_dir = gen_key_dir();
+    let mut contents = std::fs::read_to_string(&key_dir)?;
+
+    if contents.is_empty() {
+        println!("Keys dosent exist, generating new keys...");
+        key_gen();
+        contents = std::fs::read_to_string(&key_dir)?;
+    }
+
+    let keys: serde_json::Value = serde_json::from_str(&contents)?;
+    let public_key = keys["npub"].as_str().ok_or("npub not found")?.to_string();
+    let private_key = keys["nsec"].as_str().ok_or("nsec not found")?.to_string();
+
+    let valid_pair = is_valid_keypair(&public_key, &private_key);
+    if !valid_pair {
+        panic!("Invalid keypair: public key and private key must be the same length and non-empty");
+    }
+
+    Ok((public_key, private_key))
 }
