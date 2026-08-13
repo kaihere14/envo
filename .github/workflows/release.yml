@@ -1,0 +1,81 @@
+name: release
+
+# Push a tag to cut a release:  git tag v0.1.0 && git push origin v0.1.0
+# workflow_dispatch runs the same builds without publishing, so the scripts
+# can be exercised before tagging.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should not hide whether the others built.
+      fail-fast: false
+      matrix:
+        include:
+          # Built on the oldest supported image so the binary does not
+          # require a newer glibc than the user's distro ships.
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            build: bash build/linux/build.sh x86_64-unknown-linux-gnu
+
+          - os: macos-13
+            target: x86_64-apple-darwin
+            build: bash build/macos/build.sh x86_64-apple-darwin
+
+          - os: macos-14
+            target: aarch64-apple-darwin
+            build: bash build/macos/build.sh aarch64-apple-darwin
+
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            build: pwsh -File build/windows/build.ps1 -Target x86_64-pc-windows-msvc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build and package
+        shell: bash
+        run: ${{ matrix.build }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: envo-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    # workflow_dispatch runs stop after the build job; only tags publish.
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          # Flatten every platform's artifacts into one dist/ directory, so
+          # the asset names match what install.sh asks for.
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes

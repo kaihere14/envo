@@ -6,28 +6,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `envo` — zero-trust encrypted `.env` sync over Nostr. Access is enforced by keypair possession (NIP-44 / ECDH), not by trusting a relay or server. Rust 2024 edition, built on `clap` (derive), `nostr-sdk`, and `dirs`.
 
-Early development: only `keygen` is implemented. `init` is explicitly scratch/testing code (see the comments in `src/commands/init.rs`), and `pull` / `push` / `add-user` are `println!` stubs in `src/main.rs`.
+**The CLI is exactly three commands: `keygen`, `push`, `pull`.** `init` and `add-user` existed once and were removed as redundant — do not reintroduce them, or any command whose job `push` already covers. `init` did identical work to `push`, and because the event is addressable (same `d` tag replaces the previous version) there is no "first publish" worth naming separately. `add-user` was only ever "add a pubkey to `.env-share`, then push", and `push` re-encrypts for the full trusted set on every run. Before adding a command, check whether it reduces to *edit a local file, then run `push`*.
 
 ## Commands
 
 ```bash
 cargo build
 cargo run -- keygen              # writes/reads ~/.envo/keys.json
-cargo run -- init <tag>          # reads ./.env and ./.env-share from the cwd
+cargo run -- push <tag>          # reads ./.env and ./.env-share from the cwd
+cargo run -- pull <tag> [--owner <npub>]   # decrypts and overwrites ./.env
 cargo fmt
 cargo clippy
 ```
 
 There is no test suite yet. When adding one, `cargo test <name>` runs a single test.
 
+## Releases
+
+`build/{linux,macos,windows}/` hold one packaging script per platform; each writes `dist/envo-<target>.tar.gz` (`.zip` on Windows) plus a `.sha256` in `sha256sum` format. `.github/workflows/release.yml` runs all four targets on native runners and publishes them on a `v*` tag. `install.sh` maps `uname` onto those exact asset names — **the asset naming is a contract between the three: changing it in one place breaks installs.**
+
 ## Architecture
 
-**Layering — keep `main.rs` thin.** Each `Commands::*` arm in `src/main.rs` should only pattern-match the error out of a helper and delegate. All filesystem access lives in `src/helper/`, and `src/commands/*` functions receive already-parsed data rather than reading files themselves (e.g. `init(tag, &env_contents, &trusted_pubkeys)`). Do not add file I/O or parsing inline in `main.rs`.
+**Layering — keep `main.rs` thin.** Each `Commands::*` arm in `src/main.rs` should only pattern-match the error out of a helper and delegate. All filesystem access lives in `src/helper/`, and `src/commands/*` functions receive already-parsed data rather than reading files themselves (e.g. `push(tag, &env_contents, &trusted_pubkeys)`). Do not add file I/O or parsing inline in `main.rs`.
 
 **Two file locations, two different concerns:**
 
-- `~/.envo/keys.json` — the user's identity, JSON of `{"npub": ..., "nsec": ...}` in bech32. Managed entirely by `src/commands/key_gen.rs` + `src/helper/key_valid.rs`. `gen_key_dir()` creates the directory and an empty file on demand, so the file existing does *not* imply it holds valid keys.
+- `~/.envo/` — machine-local state, owner-only (`0700`, files `0600`, enforced by `helper::secret_file`). `keys.json` is the user's identity, JSON of `{"npub": ..., "nsec": ...}` in bech32, managed entirely by `src/commands/key_gen.rs` + `src/helper/key_valid.rs`; `gen_key_dir()` creates the directory and an empty file on demand, so the file existing does *not* imply it holds valid keys. `trusted_owners.json` is the `{tag: npub}` owner pin map, managed by `helper::trusted_owners`. Anything written here goes through `write_secret()`, and `envo_dir()` re-tightens permissions on every run so identities written by older versions get repaired.
 - `./.env` and `./.env-share` in the current working directory — the secrets to share and the comma-separated list of trusted `npub`s. Read by `helper::env_files::load_project_files()`, which returns both in a `ProjectFiles`.
+
+**`push` always encrypts for the publisher too.** The recipients map is the only copy of the ciphertext, so an entry addressed to the publisher's own key is added on every push whether or not `.env-share` lists them — otherwise they could publish a tag and then be unable to `pull` it back on another machine. It is keyed by canonical bech32 `npub` because that is what `pull` looks itself up by, and a self-entry in `.env-share` (in either npub or hex form) is skipped in the loop so it is not encrypted twice. This makes an empty `.env-share` a valid solo push, so the "no valid recipients" guard counts *teammates*, not map entries.
+
+**`pull` is pinned to one publisher per tag.** A `d` tag is public, so any author can publish a kind-30078 event under someone else's tag, list the victim in the recipients map, and — since events are scanned newest-first — have it decrypted and written over `.env`. The author is therefore never inferred: `fetch_event()` takes an owner `PublicKey` and constrains the filter with `.author()`, and `pull` resolves that owner from `--owner` (a one-time human decision, then cached in `trusted_owners.json`) or from the existing pin. With neither, it fails and asks for `--owner`. Do not add a fallback that picks an author for the user — accepting "whichever event came back" is the exact vulnerability this replaced.
 
 **Key loading is self-healing, but only `keygen` may create keys.** `read_existing_keys()` returns `Option<Keys>`, where `None` means "no usable identity": an empty file, unparseable JSON, keys failing `is_valid_keypair`, or a secret key that won't parse all warn and fall through instead of aborting. Only `key_gen()` acts on that by calling `create_new_keys()`. Every other command goes through `require_keys()`, which errors with `No identity found. Run \`envo keygen\` first.` — silently minting a keypair would let a command publish under a brand new identity unnoticed. `require_keys()` hands back a real `nostr_sdk::Keys` so callers can sign and do ECDH without re-parsing bech32 text.
 
@@ -40,5 +49,7 @@ All user-facing output goes through `helper::log` — `step` (`-`, work starting
 ## Error-handling conventions
 
 - Helpers return `Result<_, Box<dyn std::error::Error>>`, building messages with `format!` so the failing path is included (`could not read {path}: {e}`).
-- Callers `match` and `eprintln!("error: ...")` then return early. Avoid `unwrap()` / `expect()` in new code, including in `main.rs`.
+- `src/commands/*` entry points return `Result<(), Box<dyn std::error::Error>>` too, propagating with `?` rather than logging and returning early. `Err` means "the thing the command exists to do did not happen"; a `log::warn` and `continue` covers anything it recovered from.
+- `main` reports every failure in exactly one place: it matches the command's `Result`, calls `log::fail`, and returns `ExitCode::FAILURE`. It must not return `Err` — Rust would print its own `Error:` line next to ours, and output belongs to `helper::log` alone. Exit status is part of the interface: `envo pull && start-app` must not start the app when the pull failed.
+- Avoid `unwrap()` / `expect()` in new code, including in `main.rs`.
 - Reserve panics for genuinely unrecoverable state (no home directory, key generation itself failing), matching the existing usage in `key_valid.rs` and `key_gen.rs`.

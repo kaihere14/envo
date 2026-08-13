@@ -1,5 +1,6 @@
 use crate::helper::key_valid::*;
 use crate::helper::log;
+use crate::helper::secret_file::write_secret;
 use nostr_sdk::prelude::*;
 use std::io::Write;
 use std::path::Path;
@@ -10,7 +11,10 @@ pub fn key_gen() {
     let key_dir = gen_key_dir();
 
     if let Some(keys) = read_existing_keys(&key_dir) {
-        log::success(&format!("Found an existing identity at {}", key_dir.display()));
+        log::success(&format!(
+            "Found an existing identity at {}",
+            key_dir.display()
+        ));
 
         match keys.public_key().to_bech32() {
             Ok(public_key) => log::step(&format!("Public key: {}", public_key)),
@@ -105,8 +109,9 @@ fn create_new_keys(key_dir: &Path) -> Keys {
 
     let contents = format!(r#"{{"npub": "{}", "nsec": "{}"}}"#, public_key, private_key);
 
-    let result = std::fs::write(key_dir, contents);
-    match result {
+    // Owner-only permissions: the secret key is the entire access model, so
+    // it must not be readable by other accounts on the machine.
+    match write_secret(key_dir, &contents) {
         Ok(_) => {
             log::success(&format!("Created a new identity at {}", key_dir.display()));
             log::step(&format!("Public key (safe to share): {}", public_key));

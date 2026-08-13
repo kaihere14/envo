@@ -1,6 +1,6 @@
 use std::path::Path;
 
-/// The two project files `init` works from: the secrets to share and the
+/// The two project files `push` works from: the secrets to share and the
 /// people allowed to read them.
 pub struct ProjectFiles {
     pub env_contents: Vec<String>,
