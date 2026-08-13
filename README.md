@@ -1,10 +1,16 @@
 
 # envo
 
+[![release](https://img.shields.io/github/v/release/kaihere14/climenv?label=release&sort=semver)](https://github.com/kaihere14/climenv/releases/latest)
+[![build](https://img.shields.io/github/actions/workflow/status/kaihere14/climenv/release.yml?label=build)](https://github.com/kaihere14/climenv/actions/workflows/release.yml)
+[![installs](https://img.shields.io/github/downloads/kaihere14/climenv/total?label=installs)](https://github.com/kaihere14/climenv/releases)
+
 Zero-trust encrypted `.env` sync over Nostr. No relay, server, or local file is ever a trusted source of truth access is enforced entirely by Nostr keypair possession.
 
 ## Status
 🚧 Early development — not ready for use yet.
+
+Prebuilt binaries are published from the `release` workflow on every `v*` tag; the badges above track the newest published release, whether that build is green, and the total number of release-asset downloads.
 
 ## Install
 
