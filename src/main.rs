@@ -1,5 +1,6 @@
 mod commands;
 mod helper;
+mod nostr;
 mod tests;
 
 use crate::commands::key_gen::*;
@@ -36,7 +37,8 @@ enum Commands {
     },
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -50,11 +52,11 @@ fn main() {
                 Ok(files) => files,
                 Err(e) => {
                     eprintln!("error: {}", e);
-                    return;
+                    return Err(e);
                 }
             };
 
-            commands::init::init(tag, &files.env_contents, &files.trusted_pubkeys);
+            commands::init::init(tag, &files.env_contents, &files.trusted_pubkeys).await;
         }
 
         Commands::Pull { tag } => {
@@ -69,4 +71,5 @@ fn main() {
             println!("AddUser called with tag: {}, pubkey: {}", tag, pubkey);
         }
     }
+    Ok(())
 }

@@ -1,5 +1,6 @@
 use crate::helper::key_valid::*;
 use nostr_sdk::prelude::*;
+use std::io::Write;
 use std::path::Path;
 
 /// Generates the local Nostr keypair, or reports the existing one.
@@ -18,7 +19,26 @@ pub fn key_gen() {
         return;
     }
 
+    if !confirm("No valid keys found. Generate a new identity?") {
+        println!("Aborted. No keys were generated.");
+        return;
+    }
+
     create_new_keys(&key_dir);
+}
+
+/// Prompts the user with a yes/no question, defaulting to no.
+fn confirm(prompt: &str) -> bool {
+    print!("{} [y/N]: ", prompt);
+    std::io::stdout().flush().ok();
+
+    let mut input = String::new();
+    if std::io::stdin().read_line(&mut input).is_err() {
+        return false;
+    }
+
+    let answer = input.trim().to_lowercase();
+    answer == "y" || answer == "yes"
 }
 
 /// Reads the key file and returns the keypair when it holds a valid one.

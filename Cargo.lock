@@ -404,6 +404,7 @@ dependencies = [
  "clap",
  "dirs",
  "nostr-sdk",
+ "serde",
  "serde_json",
  "tokio",
 ]
