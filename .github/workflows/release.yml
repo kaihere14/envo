@@ -1,13 +1,21 @@
 name: release
 
-# Push a tag to cut a release:  git tag v0.1.0 && git push origin v0.1.0
-# workflow_dispatch runs the same builds without publishing, so the scripts
-# can be exercised before tagging.
+# Two ways to cut a release:
+#   git tag v0.1.0 && git push origin v0.1.0     — tag first, then build it
+#   Run this workflow from main with `version` set — tags the current commit
+#
+# Running it from main with `version` empty builds every platform without
+# publishing, so the packaging scripts can be exercised first.
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release as this version, e.g. v0.1.0-beta.1 (leave empty to build only)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -44,7 +52,7 @@ jobs:
             build: pwsh -File build/windows/build.ps1 -Target x86_64-pc-windows-msvc
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -54,7 +62,7 @@ jobs:
         shell: bash
         run: ${{ matrix.build }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: envo-${{ matrix.target }}
           path: dist/*
@@ -63,12 +71,13 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    # workflow_dispatch runs stop after the build job; only tags publish.
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Publishes for a pushed tag, or for a manual run that named a version.
+    # A manual run with no version stops after the build job.
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.version != ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: dist
           # Flatten every platform's artifacts into one dist/ directory, so
@@ -79,7 +88,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          # A manual run names its own version; a tag push takes the tag it
+          # was triggered by.
+          VERSION: ${{ inputs.version || github.ref_name }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          set -euo pipefail
+
+          # Run from main, the tag does not exist yet — `gh release create`
+          # creates it against this commit. Re-running for a version that was
+          # already released replaces the assets instead of failing.
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" dist/* --clobber
+          else
+            gh release create "$VERSION" dist/* \
+              --target "$GITHUB_SHA" \
+              --title "$VERSION" \
+              --generate-notes
+          fi
