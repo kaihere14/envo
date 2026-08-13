@@ -8,7 +8,7 @@ use crate::{
 use nostr_sdk::prelude::*;
 use std::collections::HashMap;
 
-pub async fn init(tag: String, env: &Vec<String>, trusted_content: &Vec<String>) {
+pub async fn init(tag: String, env: &[String], trusted_content: &[String]) {
     let keys = match crate::commands::key_gen::require_keys() {
         Ok(keys) => keys,
         Err(e) => {

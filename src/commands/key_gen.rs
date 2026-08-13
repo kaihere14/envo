@@ -47,12 +47,7 @@ fn confirm(prompt: &str) -> bool {
 fn read_existing_keys(key_dir: &Path) -> Option<Keys> {
     // An unreadable file is treated the same as an empty one: we fall
     // through and generate a fresh keypair below.
-    let has_contents;
-
-    match std::fs::read_to_string(key_dir) {
-        Ok(contents) => has_contents = contents,
-        Err(_) => has_contents = String::new(),
-    }
+    let has_contents = std::fs::read_to_string(key_dir).unwrap_or_default();
 
     if has_contents.is_empty() {
         return None;
@@ -68,19 +63,10 @@ fn read_existing_keys(key_dir: &Path) -> Option<Keys> {
         }
     };
 
-    let public_key;
-    match contents["npub"].as_str() {
-        Some(key) => public_key = key,
-        None => public_key = "",
-    };
+    let public_key = contents["npub"].as_str().unwrap_or_default();
+    let private_key = contents["nsec"].as_str().unwrap_or_default();
 
-    let private_key;
-    match contents["nsec"].as_str() {
-        Some(key) => private_key = key,
-        None => private_key = "",
-    };
-
-    let valid_keypair = is_valid_keypair(&public_key, &private_key);
+    let valid_keypair = is_valid_keypair(public_key, private_key);
 
     if !valid_keypair {
         eprintln!("warning: existing keys are invalid or corrupted, regenerating");
@@ -102,16 +88,16 @@ fn read_existing_keys(key_dir: &Path) -> Option<Keys> {
 fn create_new_keys(key_dir: &Path) -> Keys {
     let keys = Keys::generate();
 
-    let public_key: String;
-    let private_key: String;
+    
+    
 
-    match keys.public_key().to_bech32() {
-        Ok(key) => public_key = key,
+    let public_key: String = match keys.public_key().to_bech32() {
+        Ok(key) => key,
         Err(_) => panic!("Failed to generate public key"),
     };
 
-    match keys.secret_key().to_bech32() {
-        Ok(key) => private_key = key,
+    let private_key: String = match keys.secret_key().to_bech32() {
+        Ok(key) => key,
         Err(_) => panic!("Failed to generate private key"),
     };
 

@@ -25,5 +25,5 @@ pub fn gen_key_dir() -> PathBuf {
         println!("Creating key file at {}", key_dir.display());
         std::fs::File::create(&key_dir).expect("Failed to create the key.json file");
     }
-    return key_dir;
+    key_dir
 }
