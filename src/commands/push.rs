@@ -1,4 +1,5 @@
 use crate::{
+    helper::log,
     helper::relay_provider::get_relay_urls,
     nostr::{
         build_and_sign_event::build_and_sign_init_event, encrypter::env_encrypt,
@@ -8,14 +9,16 @@ use crate::{
 use nostr_sdk::prelude::*;
 use std::collections::HashMap;
 
-pub async fn init(tag: String, env: &[String], trusted_content: &[String]) {
+pub async fn push(tag: String, env: &[String], trusted_content: &[String]) {
     let keys = match crate::commands::key_gen::require_keys() {
         Ok(keys) => keys,
         Err(e) => {
-            eprintln!("error: could not load keys: {}", e);
+            log::fail(&format!("{}", e));
             return;
         }
     };
+
+    log::step(&format!("Publishing secrets under tag \"{}\"", tag));
 
     let env_as_string = env.join("\n");
 
@@ -25,7 +28,7 @@ pub async fn init(tag: String, env: &[String], trusted_content: &[String]) {
         let recipient_pubkey = match PublicKey::parse(npub_str) {
             Ok(pk) => pk,
             Err(e) => {
-                eprintln!("error: invalid pubkey '{}': {}", npub_str, e);
+                log::warn(&format!("Skipped invalid pubkey '{}': {}", npub_str, e));
                 continue;
             }
         };
@@ -35,12 +38,17 @@ pub async fn init(tag: String, env: &[String], trusted_content: &[String]) {
                 recipients.insert(npub_str.clone(), ciphertext);
             }
             Err(e) => {
-                eprintln!("error: failed to encrypt for {}: {}", npub_str, e);
+                log::warn(&format!("Could not encrypt for {}: {}", npub_str, e));
             }
         }
     }
 
-    println!("Encrypted for {} recipient(s)", recipients.len());
+    if recipients.is_empty() {
+        log::fail("No valid recipients in .env-share, nothing was published");
+        return;
+    }
+
+    log::success(&format!("Encrypted for {} recipient(s)", recipients.len()));
 
     let event = build_and_sign_init_event(&tag, &keys, recipients).await;
 
@@ -48,13 +56,14 @@ pub async fn init(tag: String, env: &[String], trusted_content: &[String]) {
 
     match event {
         Ok(event) => {
-            println!("Event built and signed successfully");
             if let Err(e) = publish_event(&keys, event, &relay_url).await {
-                eprintln!("error: failed to publish event: {}", e);
+                log::fail(&format!("Could not publish the event: {}", e));
+                return;
             }
+            log::success(&format!("Published tag \"{}\"", tag));
         }
         Err(e) => {
-            eprintln!("error: {}", e);
+            log::fail(&format!("Could not sign the event: {}", e));
         }
     }
 }

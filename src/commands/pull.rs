@@ -1,74 +1,77 @@
 use crate::helper::event_content::EventContent;
+use crate::helper::log;
 use crate::nostr::fetch_event::fetch_event;
-use nostr_sdk::prelude::*; // adjust path to wherever this struct actually lives
+use nostr_sdk::prelude::*;
 
 pub async fn pull(tag: String) {
     let keys = match crate::commands::key_gen::require_keys() {
         Ok(keys) => keys,
         Err(e) => {
-            eprintln!("error: could not load keys: {}", e);
-            return;
-        }
-    };
-    println!("Keys loaded successfully fetching events for: {}", &tag);
-
-    let events = match fetch_event(&tag, &keys).await {
-        Ok(events) => events,
-        Err(e) => {
-            eprintln!("error: could not fetch events: {}", e);
+            log::fail(&format!("{}", e));
             return;
         }
     };
 
     let my_pubkey = match keys.public_key().to_bech32() {
-        Ok(pk) => pk,
+        Ok(pubkey) => pubkey,
         Err(e) => {
-            eprintln!("error: could not encode your public key: {}", e);
+            log::fail(&format!("Could not encode your public key: {}", e));
             return;
         }
     };
 
-    let mut found = false;
+    log::step(&format!("Fetching secrets for tag \"{}\"", tag));
+
+    let events = match fetch_event(&tag, &keys).await {
+        Ok(events) => events,
+        Err(e) => {
+            log::fail(&format!("Could not reach the relays: {}", e));
+            return;
+        }
+    };
+
+    if events.is_empty() {
+        log::fail(&format!("No secrets published under tag \"{}\"", tag));
+        return;
+    }
 
     for event in events {
         let content: EventContent = match serde_json::from_str(&event.content) {
-            Ok(c) => c,
+            Ok(content) => content,
             Err(_) => {
-                eprintln!("warning: skipping event with malformed content");
+                log::warn("Skipped an event with malformed content");
                 continue;
             }
         };
 
-        if let Some(ciphertext) = content.recipients.get(&my_pubkey) {
-            let decrypted = match keys.nip44_decrypt(&event.pubkey, ciphertext).await {
-                Ok(d) => d,
-                Err(e) => {
-                    eprintln!("error: found your entry but failed to decrypt: {}", e);
-                    continue;
-                }
-            };
+        let Some(ciphertext) = content.recipients.get(&my_pubkey) else {
+            continue;
+        };
 
-            match std::fs::write(".env", &decrypted) {
-                Ok(_) => {
-                    println!("Pulled and decrypted successfully. .env written.");
-                    found = true;
-                }
-                Err(e) => {
-                    eprintln!(
-                        "error: decrypted successfully but failed to write .env: {}",
-                        e
-                    );
-                }
+        // Another event may carry a version we can read, so a failure here
+        // moves on to the next candidate rather than ending the command.
+        let decrypted = match keys.nip44_decrypt(&event.pubkey, ciphertext).await {
+            Ok(decrypted) => decrypted,
+            Err(e) => {
+                log::warn(&format!("Skipped an entry that would not decrypt: {}", e));
+                continue;
             }
+        };
 
-            break;
+        if let Err(e) = std::fs::write(".env", &decrypted) {
+            log::fail(&format!(
+                "Decrypted the secrets but could not write .env: {}",
+                e
+            ));
+            return;
         }
+
+        log::success(&format!("Wrote .env from tag \"{}\"", tag));
+        return;
     }
 
-    if !found {
-        eprintln!(
-            "error: no event found where you are a trusted recipient for tag '{}'",
-            tag
-        );
-    }
+    log::fail(&format!(
+        "No secrets under tag \"{}\" list you as a recipient",
+        tag
+    ));
 }

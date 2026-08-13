@@ -31,6 +31,12 @@ There is no test suite yet. When adding one, `cargo test <name>` runs a single t
 
 **Key loading is self-healing, but only `keygen` may create keys.** `read_existing_keys()` returns `Option<Keys>`, where `None` means "no usable identity": an empty file, unparseable JSON, keys failing `is_valid_keypair`, or a secret key that won't parse all warn and fall through instead of aborting. Only `key_gen()` acts on that by calling `create_new_keys()`. Every other command goes through `require_keys()`, which errors with `No identity found. Run \`envo keygen\` first.` — silently minting a keypair would let a command publish under a brand new identity unnoticed. `require_keys()` hands back a real `nostr_sdk::Keys` so callers can sign and do ECDH without re-parsing bech32 text.
 
+## Output conventions
+
+All user-facing output goes through `helper::log` — `step` (`-`, work starting), `success` (`✓`), `warn` (`!`, degraded but continuing), `fail` (`X`, cannot finish). No raw `println!`/`eprintln!` outside that module; `print!` is only for interactive prompts such as `confirm()`. Successes and progress land on stdout, warnings and failures on stderr.
+
+**The command owns the narrative.** `src/nostr/*` and `src/helper/*` stay silent about progress and return `Result` instead; only `src/commands/*` decides what the user sees. Keep it to a couple of lines per run — one `step` for what is starting, one `success` for the outcome.
+
 ## Error-handling conventions
 
 - Helpers return `Result<_, Box<dyn std::error::Error>>`, building messages with `format!` so the failing path is included (`could not read {path}: {e}`).

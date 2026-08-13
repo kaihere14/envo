@@ -1,12 +1,7 @@
 use nostr_sdk::prelude::*;
-use serde::Serialize;
 use std::collections::HashMap;
 
-#[derive(Serialize)]
-struct EventContent {
-    version: u32,
-    recipients: HashMap<String, String>,
-}
+use crate::helper::event_content::EventContent;
 
 pub async fn build_and_sign_init_event(
     tag: &str,

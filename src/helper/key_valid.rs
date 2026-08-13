@@ -21,8 +21,9 @@ pub fn gen_key_dir() -> PathBuf {
 
     let key_dir = envo_dir.join("keys.json");
 
+    // Creating the empty file is bookkeeping, not something the user asked
+    // for, so it stays silent: `key_gen` reports the identity it writes.
     if !std::path::Path::new(&key_dir).exists() {
-        println!("Creating key file at {}", key_dir.display());
         std::fs::File::create(&key_dir).expect("Failed to create the key.json file");
     }
     key_dir

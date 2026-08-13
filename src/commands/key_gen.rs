@@ -1,4 +1,5 @@
 use crate::helper::key_valid::*;
+use crate::helper::log;
 use nostr_sdk::prelude::*;
 use std::io::Write;
 use std::path::Path;
@@ -9,10 +10,10 @@ pub fn key_gen() {
     let key_dir = gen_key_dir();
 
     if let Some(keys) = read_existing_keys(&key_dir) {
-        println!("Found existing keys at {}", key_dir.display());
+        log::success(&format!("Found an existing identity at {}", key_dir.display()));
 
         match keys.public_key().to_bech32() {
-            Ok(public_key) => println!("Your public key: {}", public_key),
+            Ok(public_key) => log::step(&format!("Public key: {}", public_key)),
             Err(_) => panic!("Failed to display public key"),
         };
 
@@ -20,7 +21,7 @@ pub fn key_gen() {
     }
 
     if !confirm("No valid keys found. Generate a new identity?") {
-        println!("Aborted. No keys were generated.");
+        log::warn("Aborted, no keys were generated");
         return;
     }
 
@@ -58,7 +59,7 @@ fn read_existing_keys(key_dir: &Path) -> Option<Keys> {
     let contents: serde_json::Value = match serde_json::from_str(&has_contents) {
         Ok(contents) => contents,
         Err(e) => {
-            eprintln!("warning: could not parse {}: {}", key_dir.display(), e);
+            log::warn(&format!("Could not parse {}: {}", key_dir.display(), e));
             return None;
         }
     };
@@ -69,7 +70,7 @@ fn read_existing_keys(key_dir: &Path) -> Option<Keys> {
     let valid_keypair = is_valid_keypair(public_key, private_key);
 
     if !valid_keypair {
-        eprintln!("warning: existing keys are invalid or corrupted, regenerating");
+        log::warn("Existing keys are invalid or corrupted");
         return None;
     }
 
@@ -78,7 +79,7 @@ fn read_existing_keys(key_dir: &Path) -> Option<Keys> {
     match Keys::parse(private_key) {
         Ok(keys) => Some(keys),
         Err(_) => {
-            eprintln!("warning: stored secret key could not be parsed, regenerating");
+            log::warn("Stored secret key could not be parsed");
             None
         }
     }
@@ -107,8 +108,8 @@ fn create_new_keys(key_dir: &Path) -> Keys {
     let result = std::fs::write(key_dir, contents);
     match result {
         Ok(_) => {
-            println!("Keys saved to {}", key_dir.display());
-            println!("Your public key (safe to share): {}", public_key);
+            log::success(&format!("Created a new identity at {}", key_dir.display()));
+            log::step(&format!("Public key (safe to share): {}", public_key));
         }
         Err(e) => panic!("Failed to write keys to file: {}", e),
     }

@@ -16,17 +16,14 @@ pub async fn publish_event(
     // 3. Connect
     client.connect().await;
 
-    // 4. Publish
+    // 4. Publish. The error travels back to the caller so it is the one
+    //    deciding what the user sees.
+    let result = client.send_event(&event).await;
 
-    match client.send_event(&event).await {
-        Ok(_output) => {}
-        Err(e) => eprintln!("error: publish failed entirely: {}", e),
-    }
-
-    println!("Event published successfully!");
-
-    // 5. Disconnect once done
+    // 5. Disconnect once done, whether or not the send worked
     client.disconnect().await;
+
+    result?;
 
     Ok(())
 }

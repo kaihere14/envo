@@ -2,12 +2,12 @@ use nostr_sdk::prelude::*;
 
 use crate::helper::relay_provider::get_relay_urls;
 
-pub async fn fetch_event(
-    tag: &String,
-    keys: &Keys,
-) -> Result<Vec<Event>, Box<dyn std::error::Error>> {
-    println!("Connecting to relays to fetch tag: {}", tag);
+use crate::helper::log;
 
+/// Queries every configured relay for the addressable events published under
+/// `tag`. Reports only what the user can act on: the calling command owns the
+/// progress reporting for the run as a whole.
+pub async fn fetch_event(tag: &str, keys: &Keys) -> Result<Vec<Event>, Box<dyn std::error::Error>> {
     let client = Client::new(keys.clone());
     let relay_urls = get_relay_urls();
 
@@ -18,32 +18,28 @@ pub async fn fetch_event(
                 connected_count += 1;
             }
             Err(e) => {
-                eprintln!("warning: could not add relay {}: {}", url, e);
+                log::warn(&format!("Relay {} unavailable: {}", url, e));
             }
         }
     }
-    println!("Added {}/{} relay(s)", connected_count, relay_urls.len());
+
+    if connected_count == 0 {
+        return Err("no relays could be reached".into());
+    }
 
     client.connect().await;
-    println!("Connected, querying for tag '{}'...", tag);
 
     let filter = Filter::new()
         .kind(Kind::Custom(30078))
-        .identifier(tag.clone());
+        .identifier(tag.to_owned());
 
     let events = client
         .fetch_events(filter, std::time::Duration::from_secs(10))
         .await?;
 
     let events_vec: Vec<Event> = events.into_iter().collect();
-    println!(
-        "Found {} candidate event(s) for tag '{}'",
-        events_vec.len(),
-        tag
-    );
 
     client.disconnect().await;
-    println!("Disconnected from relays");
 
     Ok(events_vec)
 }
