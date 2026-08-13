@@ -8,7 +8,7 @@
 Zero-trust encrypted `.env` sync over Nostr. No relay, server, or local file is ever a trusted source of truth access is enforced entirely by Nostr keypair possession.
 
 ## Status
-🚧 Early development — not ready for use yet.
+🚧 Early Beta — please raise any issues you find while trying.
 
 Prebuilt binaries are published from the `release` workflow on every `v*` tag; the badges above track the newest published release, whether that build is green, and the total number of release-asset downloads.
 
