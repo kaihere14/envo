@@ -88,9 +88,6 @@ fn read_existing_keys(key_dir: &Path) -> Option<Keys> {
 fn create_new_keys(key_dir: &Path) -> Keys {
     let keys = Keys::generate();
 
-    
-    
-
     let public_key: String = match keys.public_key().to_bech32() {
         Ok(key) => key,
         Err(_) => panic!("Failed to generate public key"),

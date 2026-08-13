@@ -3,7 +3,7 @@ mod helper;
 mod nostr;
 mod tests;
 
-use crate::commands::key_gen::*;
+use crate::commands::{key_gen::*, pull::pull};
 
 use clap::{Parser, Subcommand};
 
@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Pull { tag } => {
-            println!("Pull called with tag: {}", tag);
+            pull(tag);
         }
 
         Commands::Push { tag } => {
