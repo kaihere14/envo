@@ -51,6 +51,11 @@ detect_target() {
         bin_file="$BIN"
         ;;
     MINGW* | MSYS* | CYGWIN* | Windows_NT)
+        # $HOME/.local/bin is on the PATH Git Bash builds, not the Windows
+        # one, so a binary installed here is missing from PowerShell, cmd and
+        # most IDE terminals. install.ps1 puts it somewhere all of them look.
+        warn "on Windows, prefer the PowerShell installer so envo lands on the Windows PATH:"
+        warn "  irm https://raw.githubusercontent.com/$REPO/main/install.ps1 | iex"
         target="x86_64-pc-windows-msvc"
         ext="zip"
         bin_file="$BIN.exe"

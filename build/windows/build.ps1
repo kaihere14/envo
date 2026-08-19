@@ -1,5 +1,5 @@
-# Builds the Windows release binary and packages it the way install.sh
-# expects: dist\envo-<target>.zip plus a matching .sha256.
+# Builds the Windows release binary and packages it the way install.ps1 and
+# install.sh expect: dist\envo-<target>.zip plus a matching .sha256.
 #
 #   pwsh -File build/windows/build.ps1 [-Target <triple>]
 

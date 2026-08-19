@@ -14,16 +14,32 @@ Prebuilt binaries are published from the `release` workflow on every `v*` tag; t
 
 ## Install
 
+**macOS and Linux**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kaihere14/climenv/main/install.sh | sh
 ```
 
-Detects your OS and CPU, downloads the matching binary from the latest release, verifies its SHA-256 and installs it to `~/.local/bin`.
+Installs to `~/.local/bin`.
+
+**Windows** — in PowerShell (or the terminal your IDE opens):
+
+```powershell
+irm https://raw.githubusercontent.com/kaihere14/climenv/main/install.ps1 | iex
+```
+
+Installs to `%LOCALAPPDATA%\envo\bin` and adds it to your user PATH, so `envo` works in PowerShell, cmd, and every IDE terminal. Terminals that were already open need a restart. No curl, tar, or Git Bash required — `curl ... | sh` does not work in PowerShell, because `curl` there is an alias for `Invoke-WebRequest`.
+
+Both installers detect your CPU, download the matching binary from the latest release and verify its SHA-256. Both read the same settings from the environment:
 
 - `ENVO_VERSION=v0.1.0` pins a release tag.
-- `ENVO_INSTALL_DIR=/usr/local/bin` changes where the binary lands.
+- `ENVO_INSTALL_DIR` changes where the binary lands.
 
-Prebuilt for Linux x86_64, macOS (Intel and Apple Silicon) and Windows x86_64. On Windows use Git Bash or WSL, or download the `.zip` from the [releases page](https://github.com/kaihere14/climenv/releases).
+```powershell
+$env:ENVO_VERSION = 'v0.1.0'; irm https://raw.githubusercontent.com/kaihere14/climenv/main/install.ps1 | iex
+```
+
+Prebuilt for Linux x86_64, macOS (Intel and Apple Silicon) and Windows x86_64; Windows on ARM runs the x86_64 build under emulation. Or download the archive straight from the [releases page](https://github.com/kaihere14/climenv/releases).
 
 ## Building from source
 

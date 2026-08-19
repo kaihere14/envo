@@ -23,7 +23,9 @@ There is no test suite yet. When adding one, `cargo test <name>` runs a single t
 
 ## Releases
 
-`build/{linux,macos,windows}/` hold one packaging script per platform; each writes `dist/envo-<target>.tar.gz` (`.zip` on Windows) plus a `.sha256` in `sha256sum` format. `.github/workflows/release.yml` runs all four targets on native runners and publishes them on a `v*` tag. `install.sh` maps `uname` onto those exact asset names — **the asset naming is a contract between the three: changing it in one place breaks installs.**
+`build/{linux,macos,windows}/` hold one packaging script per platform; each writes `dist/envo-<target>.tar.gz` (`.zip` on Windows) plus a `.sha256` in `sha256sum` format. `.github/workflows/release.yml` runs all four targets on native runners and publishes them on a `v*` tag. `install.sh` maps `uname` onto those exact asset names, and `install.ps1` hardcodes the Windows one — **the asset naming is a contract between the four: changing it in one place breaks installs.**
+
+There are two installers because they cannot be one. `curl` in PowerShell is an alias for `Invoke-WebRequest` and takes none of curl's flags, so `curl ... | sh` cannot work there, and a Git Bash install lands on a PATH only Git Bash reads — which is why `envo` came back "not found" in the PowerShell terminal every Windows IDE opens. `install.ps1` therefore uses only built-ins (`Invoke-WebRequest`, `Expand-Archive`, `Get-FileHash`), installs to `%LOCALAPPDATA%\envo\bin`, and writes the user PATH in `HKCU\Environment` raw so a `REG_EXPAND_SZ` PATH is not flattened. Keep the two in step: both take `ENVO_VERSION` and `ENVO_INSTALL_DIR`, and both print the same `- / ✓ / ! / X` symbols as `helper::log`.
 
 ## Architecture
 
