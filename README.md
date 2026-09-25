@@ -59,8 +59,10 @@ Each script writes `dist/envo-<target>.tar.gz` (`.zip` on Windows) plus a `.sha2
 ## Commands
 
 - `envo keygen` — generate your Nostr keypair
-- `envo push <tag>` — encrypt `.env` for everyone in `.env-share`, plus yourself, and publish it
-- `envo pull <tag> [--owner <npub>]` — fetch the event you are a recipient of and write `.env`
+- `envo push [tag]` — encrypt `.env` for everyone in `.env-share`, plus yourself, and publish it
+- `envo pull [tag] [--owner <npub>]` — fetch the event you are a recipient of and write `.env`
+
+The tag is remembered in `./.envo-config` after the first successful `push` or `pull`, so later runs in that directory can omit it.
 
 There is no separate command to add a teammate: put their `npub` in `.env-share` and run `envo push` again. Because the event is addressable, pushing the same tag always replaces the previous version.
 
@@ -72,10 +74,10 @@ A tag is just a label on a public relay, so anyone can publish an event under it
 
 ```bash
 envo pull my-project --owner npub1...   # first time: pin who publishes this tag
-envo pull my-project                    # afterwards: pinned owner is remembered
+envo pull                               # afterwards: tag and owner are remembered
 ```
 
-The pin lives in `~/.envo/trusted_owners.json`. Passing `--owner` again re-pins the tag and warns if that changes who you were trusting.
+The pin lives in `./.envo-config` next to your `.env`. Inside a git repository envo adds it to `.gitignore` automatically, because anyone who can edit it can point the tag at their own key. Passing `--owner` again re-pins the tag and warns if that changes who you were trusting.
 
 ## Stack
 Rust · [nostr-sdk](https://github.com/rust-nostr/nostr) · secp256k1 · NIP-44

@@ -17,10 +17,14 @@ struct Cli {
 enum Commands {
     Keygen,
     Push {
-        tag: String,
+        /// Tag to publish under. Defaults to the one saved in `.envo-config`
+        /// by the last successful push or pull in this directory.
+        tag: Option<String>,
     },
     Pull {
-        tag: String,
+        /// Tag to fetch. Defaults to the one saved in `.envo-config` by the
+        /// last successful push or pull in this directory.
+        tag: Option<String>,
         /// npub of the publisher to trust for this tag. Required the first
         /// time a tag is pulled; remembered afterwards.
         #[arg(long)]
@@ -41,7 +45,7 @@ async fn main() -> ExitCode {
             Ok(())
         }
         Commands::Push { tag } => run_push(tag).await,
-        Commands::Pull { tag, owner } => commands::pull::pull(tag, owner).await,
+        Commands::Pull { tag, owner } => run_pull(tag, owner).await,
     };
 
     match result {
@@ -54,8 +58,19 @@ async fn main() -> ExitCode {
 }
 
 /// Reads the project files `push` needs, then hands them over already parsed.
-async fn run_push(tag: String) -> Result<(), Box<dyn std::error::Error>> {
+async fn run_push(tag: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+    let tag = helper::project_config::resolve_tag(tag)?;
     let files = helper::env_files::load_project_files()?;
 
     commands::push::push(tag, &files.env_contents, &files.trusted_pubkeys).await
+}
+
+/// Resolves the tag to pull, falling back to the saved default.
+async fn run_pull(
+    tag: Option<String>,
+    owner: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let tag = helper::project_config::resolve_tag(tag)?;
+
+    commands::pull::pull(tag, owner).await
 }

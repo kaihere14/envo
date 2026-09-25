@@ -1,5 +1,6 @@
 use crate::{
     helper::log,
+    helper::project_config::remember_tag,
     helper::relay_provider::get_relay_urls,
     nostr::{
         build_and_sign_event::build_and_sign_init_event, encrypter::env_encrypt,
@@ -101,6 +102,12 @@ pub async fn push(
         .map_err(|e| format!("Could not publish the event: {}", e))?;
 
     log::success(&format!("Published tag \"{}\"", tag));
+
+    // Only a tag that worked becomes the default, so a typo is not remembered.
+    // The push already happened; failing to save only costs retyping the tag.
+    if let Err(e) = remember_tag(&tag) {
+        log::warn(&format!("Could not remember the tag for next time: {}", e));
+    }
 
     Ok(())
 }

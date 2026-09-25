@@ -1,6 +1,6 @@
 use crate::helper::event_content::EventContent;
 use crate::helper::log;
-use crate::helper::trusted_owners::{get_trusted_owner, save_trusted_owner};
+use crate::helper::project_config::{get_trusted_owner, remember_tag, save_trusted_owner};
 use crate::nostr::fetch_event::fetch_event;
 use nostr_sdk::prelude::*;
 
@@ -60,6 +60,13 @@ pub async fn pull(tag: String, owner: Option<String>) -> Result<(), Box<dyn std:
             .map_err(|e| format!("Decrypted the secrets but could not write .env: {}", e))?;
 
         log::success(&format!("Wrote .env from tag \"{}\"", tag));
+
+        // Only a tag that worked becomes the default, so a typo is not remembered.
+        // The pull already happened; failing to save only costs retyping the tag.
+        if let Err(e) = remember_tag(&tag) {
+            log::warn(&format!("Could not remember the tag for next time: {}", e));
+        }
+
         return Ok(());
     }
 
